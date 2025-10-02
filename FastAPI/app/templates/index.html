@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📊 Unemployment Rate Predictor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      :root {
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --success: #10b981;
+        --error: #ef4444;
+        --gray-light: #f8f9fa;
+        --gray-dark: #1f2937;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+        color: var(--gray-dark);
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .header {
+        background: var(--primary);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+      }
+      .header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+      .header p {
+        opacity: 0.9;
+        font-size: 1.1rem;
+      }
+      .form-container {
+        padding: 2rem;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+      .form-group label {
+        font-weight: 600;
+        margin-bottom: 0.3rem;
+      }
+      .form-group input,
+      .form-group select {
+        padding: 0.6rem;
+        border: 1.5px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: 0.3s;
+      }
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      button {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        background: var(--primary);
+        color: white;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+      button:hover {
+        background: var(--primary-dark);
+      }
+      button:disabled {
+        background: #6b7280;
+        cursor: not-allowed;
+      }
+      .result-container {
+        padding: 1.5rem;
+        border-radius: 12px;
+        display: none;
+        margin-top: 1rem;
+      }
+      .result-success {
+        background: #d1fae5;
+        border: 2px solid var(--success);
+      }
+      .result-error {
+        background: #fee2e2;
+        border: 2px solid var(--error);
+      }
+      .prediction-result {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--primary);
+        margin-top: 0.5rem;
+      }
+      .loading {
+        text-align: center;
+        padding: 1rem;
+        color: #6b7280;
+        display: none;
+      }
+      .loading::after {
+        content: "";
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #ddd;
+        border-top: 2px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .chart-container {
+        margin-top: 2rem;
+      }
+      @media (max-width: 768px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📊 Unemployment Rate Predictor</h1>
+        <p>กรอกข้อมูลเพื่อทำนายอัตราการว่างงาน (%) และดู trend</p>
+      </div>
+      <div class="form-container">
+        <form id="predictionForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="year">Year:</label>
+              <input
+                type="number"
+                id="year"
+                name="year"
+                min="2000"
+                max="2100"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="quarter_num">Quarter:</label>
+              <select id="quarter_num" name="quarter_num" required>
+                <option value="">-- Select --</option>
+                <option value="1">Q1</option>
+                <option value="2">Q2</option>
+                <option value="3">Q3</option>
+                <option value="4">Q4</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="time_index_q">Time Index:</label>
+              <input
+                type="number"
+                id="time_index_q"
+                name="time_index_q"
+                min="0"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="sex">Sex:</label>
+              <select id="sex" name="sex" required>
+                <option value="">-- Select --</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="age_group">Age Group:</label>
+              <select id="age_group" name="age_group" required>
+                <option value="">-- Select --</option>
+                <option value="15-19">15-19</option>
+                <option value="20-24">20-24</option>
+                <option value="25-29">25-29</option>
+                <option value="30-34">30-34</option>
+                <option value="35-39">35-39</option>
+                <option value="40-49">40-49</option>
+                <option value="50-59">50-59</option>
+                <option value="60">60+</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" id="predictBtn">Predict</button>
+        </form>
+
+        <div id="loading" class="loading">กำลังประมวลผล...</div>
+
+        <div id="result" class="result-container">
+          <h3>ผลลัพธ์การทำนาย</h3>
+          <div class="prediction-result" id="predictionText"></div>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="trendChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+    <script>
+      let trendChart;
+
+      document
+        .getElementById("predictionForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const btn = document.getElementById("predictBtn");
+          const loading = document.getElementById("loading");
+          const result = document.getElementById("result");
+          const predictionText = document.getElementById("predictionText");
+
+          btn.disabled = true;
+          loading.style.display = "block";
+          result.style.display = "none";
+
+          try {
+            const year = parseInt(document.getElementById("year").value);
+            const quarter_num = parseInt(
+              document.getElementById("quarter_num").value
+            );
+            const time_index_q = parseInt(
+              document.getElementById("time_index_q").value
+            );
+            const sex = document.getElementById("sex").value;
+            const age_group = document.getElementById("age_group").value;
+
+            const sex_female = sex === "female" ? 1 : 0;
+            const sex_male = sex === "male" ? 1 : 0;
+
+            const ageGroups = {
+              "15-19": 0,
+              "20-24": 0,
+              "25-29": 0,
+              "30-34": 0,
+              "35-39": 0,
+              "40-49": 0,
+              "50-59": 0,
+              60: 0,
+            };
+            ageGroups[age_group] = 1;
+
+            const payload = {
+              year,
+              quarter_num,
+              time_index_q,
+              sex_clean_female: sex === "female" ? 1 : 0,
+              sex_clean_male: sex === "male" ? 1 : 0,
+              "age_group_clean_15-19": ageGroups["15-19"],
+              "age_group_clean_20-24": ageGroups["20-24"],
+              "age_group_clean_25-29": ageGroups["25-29"],
+              "age_group_clean_30-34": ageGroups["30-34"],
+              "age_group_clean_35-39": ageGroups["35-39"],
+              "age_group_clean_40-49": ageGroups["40-49"],
+              "age_group_clean_50-59": ageGroups["50-59"],
+              age_group_clean_60: ageGroups["60"],
+            };
+
+            console.log("Payload sent to API:", payload); // Debug log
+
+            const response = await fetch("http://127.0.0.1:8000/predict", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            console.log(response);
+
+            const data = await response.json();
+
+            if (response.ok) {
+              result.className = "result-container result-success";
+              predictionText.textContent = `Predicted Unemployment Rate: ${data.predicted_unemployment_rate_pct.toFixed(
+                2
+              )}%`;
+
+              // อัปเดตกราฟ trend
+              const labels = [year - 2, year - 1, year, year + 1]; // ตัวอย่างปีย้อนหลัง
+              const values = [
+                data.predicted_unemployment_rate_pct - 1.5,
+                data.predicted_unemployment_rate_pct - 0.8,
+                data.predicted_unemployment_rate_pct,
+                data.predicted_unemployment_rate_pct + 0.5,
+              ];
+              if (trendChart) trendChart.destroy();
+              const ctx = document
+                .getElementById("trendChart")
+                .getContext("2d");
+              trendChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                  labels: labels,
+                  datasets: [
+                    {
+                      label: "Unemployment Rate (%)",
+                      data: values,
+                      borderColor: "rgba(37,99,235,1)",
+                      backgroundColor: "rgba(37,99,235,0.2)",
+                      fill: true,
+                      tension: 0.3,
+                    },
+                  ],
+                },
+                options: {
+                  responsive: true,
+                  scales: {
+                    y: { beginAtZero: true },
+                  },
+                },
+              });
+            } else {
+              result.className = "result-container result-error";
+              predictionText.textContent = data.message || "Prediction failed";
+            }
+            result.style.display = "block";
+          } catch (err) {
+            console.log(err);
+            result.className = "result-container result-error";
+            predictionText.textContent = err.message;
+            result.style.display = "block";
+          } finally {
+            btn.disabled = false;
+            loading.style.display = "none";
+          }
+        });
+    </script>
+  </body>
+</html>
